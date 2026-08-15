@@ -125,8 +125,8 @@ async def run_simulation(request: SimulationRequest):
 @app.get("/ai/insights")
 async def get_insights(user_id: str = "demo_user"):
     """
-    Generate personalized weekly insights using Claude API.
-    Requires ANTHROPIC_API_KEY in .env file.
+    Generate personalized weekly insights using Gemini API.
+    Requires GEMINI_API_KEY in .env file.
     """
     # Load demo data
     df = generate_demo_data()
@@ -135,12 +135,12 @@ async def get_insights(user_id: str = "demo_user"):
     avg_data = df.mean().to_dict()
     
     # Initialize insight generator
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         return {
-            "error": "ANTHROPIC_API_KEY not found in .env file",
+            "error": "GEMINI_API_KEY not found in .env file",
             "weekly_averages": avg_data,
-            "insights": ["Add your Claude API key to get personalized insights."]
+            "insights": ["Add your Gemini API key to get personalized insights."]
         }
     
     generator = InsightGenerator(api_key)
