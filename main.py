@@ -28,8 +28,12 @@ if not supabase_url or not supabase_key:
     print("⚠️ Warning: Supabase credentials not found. Using mock data.")
     supabase = None
 else:
-    supabase: Client = create_client(supabase_url, supabase_key)
-    print("✅ Connected to Supabase")
+    try:
+        supabase: Client = create_client(supabase_url, supabase_key)
+        print("✅ Connected to Supabase")
+    except Exception as e:
+        print(f"❌ Supabase connection failed: {e}")
+        supabase = None
 
 # Allow frontend to call this API
 app.add_middleware(
@@ -140,85 +144,121 @@ async def get_patterns(user_id: str = "demo_user"):
     """
     Analyze user's check-in data and find hidden connections between wellness factors.
     """
-    # Fetch REAL data from Supabase
-    df = fetch_user_check_ins(user_id)
-    
-    if df.empty:
+    try:
+        # Fetch REAL data from Supabase
+        df = fetch_user_check_ins(user_id)
+        
+        if df.empty:
+            return {
+                "error": "No data found for this user. Please log some check-ins first.",
+                "user_id": user_id,
+                "connections": [],
+                "total_patterns": 0
+            }
+        
+        detector = PatternDetector(df)
+        
+        correlations = detector.compute_correlations().to_dict()
+        connections = detector.find_hidden_connections(threshold=0.5)
+        trends = detector.detect_trends()
+        
         return {
-            "error": "No data found for this user. Please log some check-ins first.",
-            "user_id": user_id
+            "user_id": user_id,
+            "correlations": correlations,
+            "connections": connections,
+            "trends": trends,
+            "total_patterns": len(connections)
         }
-    
-    detector = PatternDetector(df)
-    
-    correlations = detector.compute_correlations().to_dict()
-    connections = detector.find_hidden_connections(threshold=0.5)
-    trends = detector.detect_trends()
-    
-    return {
-        "user_id": user_id,
-        "correlations": correlations,
-        "connections": connections,
-        "trends": trends,
-        "total_patterns": len(connections)
-    }
+    except Exception as e:
+        print(f"Error in /ai/patterns: {e}")
+        return {
+            "error": "Failed to analyze patterns",
+            "message": str(e),
+            "connections": [],
+            "total_patterns": 0
+        }
 
 @app.post("/ai/simulate")
 async def run_simulation(request: SimulationRequest):
     """
     Simulate the impact of changing one wellness factor.
     """
-    # Fetch REAL data from Supabase
-    df = fetch_user_check_ins(request.user_id)
-    
-    if df.empty:
+    try:
+        # Fetch REAL data from Supabase
+        df = fetch_user_check_ins(request.user_id)
+        
+        if df.empty:
+            return {
+                "error": "No data found for this user. Please log some check-ins first."
+            }
+        
+        simulator = WhatIfSimulator(df)
+        result = simulator.run_simulation(
+            changed_factor=request.factor,
+            new_value=request.new_value
+        )
+        
+        return result
+    except Exception as e:
+        print(f"Error in /ai/simulate: {e}")
         return {
-            "error": "No data found for this user. Please log some check-ins first."
+            "error": "Simulation failed",
+            "message": str(e)
         }
-    
-    simulator = WhatIfSimulator(df)
-    result = simulator.run_simulation(
-        changed_factor=request.factor,
-        new_value=request.new_value
-    )
-    
-    return result
 
 @app.get("/ai/insights")
 async def get_insights(user_id: str = "demo_user"):
     """
     Generate personalized weekly insights using Gemini API.
     """
-    # Fetch REAL data from Supabase
-    df = fetch_user_check_ins(user_id)
-    
-    if df.empty:
+    try:
+        # Fetch REAL data from Supabase
+        df = fetch_user_check_ins(user_id)
+        
+        if df.empty:
+            return {
+                "error": "No data found for this user. Please log some check-ins first.",
+                "user_id": user_id,
+                "insights": ["Log your wellness data to get personalized insights."]
+            }
+        
+        detector = PatternDetector(df)
+        connections = detector.find_hidden_connections(threshold=0.5)
+        avg_data = df.mean().to_dict()
+        
+        # Initialize insight generator
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            return {
+                "error": "GEMINI_API_KEY not found",
+                "weekly_averages": avg_data,
+                "insights": ["Add your Gemini API key to get personalized insights."]
+            }
+        
+        # Generate insights with timeout protection
+        generator = InsightGenerator(api_key)
+        try:
+            insights = generator.generate_weekly_insights(avg_data, connections)
+        except Exception as e:
+            print(f"Gemini API error: {e}")
+            return {
+                "error": "AI service temporarily unavailable",
+                "weekly_averages": avg_data,
+                "insights": ["The AI service is currently busy. Please try again in a moment."]
+            }
+        
         return {
-            "error": "No data found for this user. Please log some check-ins first.",
-            "user_id": user_id
-        }
-    
-    detector = PatternDetector(df)
-    connections = detector.find_hidden_connections(threshold=0.5)
-    avg_data = df.mean().to_dict()
-    
-    # Initialize insight generator
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return {
-            "error": "GEMINI_API_KEY not found in .env file",
+            "user_id": user_id,
             "weekly_averages": avg_data,
-            "insights": ["Add your Gemini API key to get personalized insights."]
+            "insights": insights
         }
-    
-    generator = InsightGenerator(api_key)
-    insights = generator.generate_weekly_insights(avg_data, connections)
-    
-    return {
-        "user_id": user_id,
-        "weekly_averages": avg_data,
-        "insights": insights
-    }
+    except Exception as e:
+        print(f"Unexpected error in /ai/insights: {e}")
+        return {
+            "error": "Internal server error",
+            "message": str(e),
+            "insights": ["We're experiencing technical difficulties. Please try again later."]
+        }
 
 @app.get("/ai/health")
 async def health_check():
