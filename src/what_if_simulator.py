@@ -12,7 +12,7 @@ class WhatIfSimulator:
         Initialize with user's historical check-in data.
         """
         self.factors = ['sleep', 'nutrition', 'movement', 'stress', 
-                       'relationships', 'environment', 'fun']
+                'relationships', 'environment', 'fun', 'screen_time']
         self.history = history[self.factors].copy() if all(f in history.columns for f in self.factors) else history
         
         # Calculate correlations from historical data

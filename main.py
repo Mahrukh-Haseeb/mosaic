@@ -7,8 +7,9 @@ import pandas as pd
 import os
 from dotenv import load_dotenv
 from datetime import datetime
+from supabase import create_client, Client
 
-# Import your AI modules (we'll create these next)
+# Import your AI modules
 from src.pattern_detection import PatternDetector
 from src.what_if_simulator import WhatIfSimulator
 from src.insight_generator import InsightGenerator
@@ -19,10 +20,21 @@ load_dotenv()
 # Initialize FastAPI
 app = FastAPI(title="MOSAIC AI Engine", version="1.0.0")
 
+# Initialize Supabase Client
+supabase_url = os.getenv("SUPABASE_URL")
+supabase_key = os.getenv("SUPABASE_ANON_KEY")
+
+if not supabase_url or not supabase_key:
+    print("⚠️ Warning: Supabase credentials not found. Using mock data.")
+    supabase = None
+else:
+    supabase: Client = create_client(supabase_url, supabase_key)
+    print("✅ Connected to Supabase")
+
 # Allow frontend to call this API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For development; restrict later
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -44,11 +56,50 @@ class CheckInData(BaseModel):
     fun: float
     energy: float
     mood: float
+    screen_time: float
     created_at: str
 
-# --- Helper to Generate Demo Data ---
-def generate_demo_data():
-    """Creates 30 days of sample wellness data for testing."""
+# --- Helper to Fetch Real Data from Supabase ---
+def fetch_user_check_ins(user_id: str, days: int = 30) -> pd.DataFrame:
+    """Fetch real check-ins from Supabase for a given user."""
+    if not supabase:
+        print("⚠️ Supabase not connected. Using mock data.")
+        return generate_mock_data()
+    
+    try:
+        # Query Supabase
+        response = supabase.table('check_ins')\
+            .select('*')\
+            .eq('user_id', user_id)\
+            .order('created_at', ascending=True)\
+            .execute()
+        
+        if response.data:
+            df = pd.DataFrame(response.data)
+            
+            # Ensure all required columns exist
+            required_cols = ['sleep', 'nutrition', 'movement', 'stress', 
+                            'relationships', 'environment', 'fun', 'energy', 'mood', 'screen_time']
+            for col in required_cols:
+                if col not in df.columns:
+                    df[col] = 50  # Default value if missing
+            
+            # Convert created_at to datetime
+            if 'created_at' in df.columns:
+                df['created_at'] = pd.to_datetime(df['created_at'])
+            
+            print(f"✅ Fetched {len(df)} check-ins for user {user_id}")
+            return df
+        else:
+            print(f"⚠️ No check-ins found for user {user_id}. Using mock data.")
+            return generate_mock_data()
+            
+    except Exception as e:
+        print(f"❌ Error fetching from Supabase: {e}")
+        return generate_mock_data()
+
+def generate_mock_data() -> pd.DataFrame:
+    """Generate mock data as fallback when Supabase is unavailable."""
     import numpy as np
     np.random.seed(42)
     dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
@@ -63,10 +114,11 @@ def generate_demo_data():
         'environment': np.random.randint(20, 90, 30),
         'fun': np.random.randint(10, 90, 30),
         'energy': np.random.randint(20, 90, 30),
-        'mood': np.random.randint(20, 95, 30)
+        'mood': np.random.randint(20, 95, 30),
+        'screen_time': np.random.randint(2, 12, 30)
     }
     
-    # Add some correlations for realism
+    # Add correlations for realism
     for i in range(len(data['sleep'])):
         if data['sleep'][i] < 6:
             data['stress'][i] = min(95, data['stress'][i] + 20)
@@ -87,10 +139,16 @@ async def root():
 async def get_patterns(user_id: str = "demo_user"):
     """
     Analyze user's check-in data and find hidden connections between wellness factors.
-    Returns correlations, connections, and trends.
     """
-    # For now, use demo data. Later, we'll fetch from Supabase.
-    df = generate_demo_data()
+    # Fetch REAL data from Supabase
+    df = fetch_user_check_ins(user_id)
+    
+    if df.empty:
+        return {
+            "error": "No data found for this user. Please log some check-ins first.",
+            "user_id": user_id
+        }
+    
     detector = PatternDetector(df)
     
     correlations = detector.compute_correlations().to_dict()
@@ -109,12 +167,16 @@ async def get_patterns(user_id: str = "demo_user"):
 async def run_simulation(request: SimulationRequest):
     """
     Simulate the impact of changing one wellness factor.
-    Example: What if I sleep 8 hours instead of 5?
     """
-    # Use demo data for now
-    df = generate_demo_data()
-    simulator = WhatIfSimulator(df)
+    # Fetch REAL data from Supabase
+    df = fetch_user_check_ins(request.user_id)
     
+    if df.empty:
+        return {
+            "error": "No data found for this user. Please log some check-ins first."
+        }
+    
+    simulator = WhatIfSimulator(df)
     result = simulator.run_simulation(
         changed_factor=request.factor,
         new_value=request.new_value
@@ -126,10 +188,16 @@ async def run_simulation(request: SimulationRequest):
 async def get_insights(user_id: str = "demo_user"):
     """
     Generate personalized weekly insights using Gemini API.
-    Requires GEMINI_API_KEY in .env file.
     """
-    # Load demo data
-    df = generate_demo_data()
+    # Fetch REAL data from Supabase
+    df = fetch_user_check_ins(user_id)
+    
+    if df.empty:
+        return {
+            "error": "No data found for this user. Please log some check-ins first.",
+            "user_id": user_id
+        }
+    
     detector = PatternDetector(df)
     connections = detector.find_hidden_connections(threshold=0.5)
     avg_data = df.mean().to_dict()
@@ -158,7 +226,8 @@ async def health_check():
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "service": "MOSAIC AI Engine"
+        "service": "MOSAIC AI Engine",
+        "supabase_connected": supabase is not None
     }
 
 # --- Run the Server ---

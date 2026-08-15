@@ -30,10 +30,7 @@ class InsightGenerator:
             List of insight strings
         """
         # Format averages for the prompt
-        avg_text = "\n".join([
-            f"- {k}: {v:.1f}" for k, v in averages.items() 
-            if k in ['sleep', 'nutrition', 'movement', 'stress', 'relationships', 'environment', 'fun']
-        ])
+        avg_text = "\n".join([f"- {k}: {v:.1f}" for k, v in averages.items() if k in ['sleep', 'nutrition', 'movement', 'stress', 'relationships', 'environment', 'fun', 'screen_time']])
         
         # Format patterns for the prompt
         pattern_text = ""

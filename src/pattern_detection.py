@@ -13,7 +13,7 @@ class PatternDetector:
         Initialize with user's check-in data.
         """
         self.factors = ['sleep', 'nutrition', 'movement', 'stress', 
-                       'relationships', 'environment', 'fun', 'energy', 'mood']
+                'relationships', 'environment', 'fun', 'energy', 'mood', 'screen_time']
         
         # Ensure all factors exist in the data
         available_factors = [f for f in self.factors if f in data.columns]
