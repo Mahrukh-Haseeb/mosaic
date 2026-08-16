@@ -162,8 +162,6 @@ wellness world react even more dynamically to changes in the user's data!
 ##  Use of AI
 ### AI Models
 Gemini 3.6 Flash (free tier)
-XGBoost (scikit-learn): Pattern detection and correlation analysis between wellness factors    (open-source & free)
-scikit-learn: Machine learning for trend detection   
-(open-source & free)
+scikit-learn: Machine learning for trend detection  (open-source & free)
 We send the detected patterns and user averages to Gemini with this prompt:
 "Based on this user's weekly wellness data, generate 5 personalized, actionable insights. Be specific and reference their actual data. Be encouraging and non-judgmental. Focus on connections between factors."
