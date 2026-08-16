@@ -1,5 +1,5 @@
 # src/insight_generator.py
-import google.generativeai as genai
+from google import genai
 import json
 import os
 import re
@@ -14,8 +14,12 @@ class InsightGenerator:
         Args:
             api_key: Your Google AI Studio API key from https://ai.google.dev/
         """
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.5-flash')
+        self.client = genai.Client(api_key=api_key)
+        # gemini-2.5-flash is being retired (shutdown Oct 16, 2026) and was
+        # already returning "model no longer available" errors ahead of that
+        # date. gemini-3.6-flash is the current stable, generally-available
+        # replacement as of August 2026.
+        self.model_name = 'gemini-3.6-flash'
     
     def generate_weekly_insights(self, averages: dict, patterns: list, max_insights: int = 5) -> list:
         """
@@ -65,7 +69,10 @@ Example format: ["Insight 1", "Insight 2", ...]
 """
         
         try:
-            response = self.model.generate_content(prompt)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt
+            )
             insights_text = response.text
             
             # Extract JSON from the response

@@ -18,6 +18,11 @@ class PatternDetector:
         # Ensure all factors exist in the data
         available_factors = [f for f in self.factors if f in data.columns]
         self.data = data[available_factors].copy()
+
+        # Preserve the timestamp column separately (if present) so that
+        # detect_trends() can use it, without it being pulled into the
+        # numeric correlation matrix in compute_correlations().
+        self.dates = data['created_at'].copy() if 'created_at' in data.columns else None
         
     def compute_correlations(self) -> pd.DataFrame:
         """Calculate correlation matrix between all wellness factors."""
@@ -54,33 +59,32 @@ class PatternDetector:
         """
         Detect trends over time (e.g., "energy drops on Thursdays").
         """
-        if 'created_at' not in self.data.columns:
+        if self.dates is None:
             return []
         
         trends = []
         df_with_dow = self.data.copy()
-        if 'created_at' in df_with_dow.columns:
-            df_with_dow['day_of_week'] = pd.to_datetime(df_with_dow['created_at']).dt.day_name()
-            
-            for factor in ['energy', 'stress', 'mood']:
-                if factor not in df_with_dow.columns:
-                    continue
-                    
-                daily_avg = df_with_dow.groupby('day_of_week')[factor].mean()
-                if len(daily_avg) < 3:
-                    continue
-                    
-                min_day = daily_avg.idxmin()
-                max_day = daily_avg.idxmax()
-                range_val = daily_avg.max() - daily_avg.min()
+        df_with_dow['day_of_week'] = pd.to_datetime(self.dates).dt.day_name()
+
+        for factor in ['energy', 'stress', 'mood']:
+            if factor not in df_with_dow.columns:
+                continue
                 
-                if range_val > 10:
-                    trends.append({
-                        'factor': factor,
-                        'best_day': max_day,
-                        'worst_day': min_day,
-                        'range': round(range_val, 2),
-                        'insight': f"Your {factor} is highest on {max_day} and lowest on {min_day}."
-                    })
+            daily_avg = df_with_dow.groupby('day_of_week')[factor].mean()
+            if len(daily_avg) < 3:
+                continue
+                
+            min_day = daily_avg.idxmin()
+            max_day = daily_avg.idxmax()
+            range_val = daily_avg.max() - daily_avg.min()
+            
+            if range_val > 10:
+                trends.append({
+                    'factor': factor,
+                    'best_day': max_day,
+                    'worst_day': min_day,
+                    'range': round(range_val, 2),
+                    'insight': f"Your {factor} is highest on {max_day} and lowest on {min_day}."
+                })
         
         return trends
