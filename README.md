@@ -1,12 +1,12 @@
 ## Inspiration
 
-Notice how every wellness app treats your wellbeing as a collection of separate pieces? Your sleep, your diet, your workouts... tracked individually, as if they not dependent, not a mosaic.
+Notice how every wellness app treats your wellbeing as a collection of separate pieces? Your sleep, your diet, your workouts... tracked individually, as if they are not dependent, not a mosaic.
 But your body doesn't work that way. That's our _why_ behind **MOSAIC: the symbiosis of your body,  digitally**!
  
 ## What it does
 
 MOSAIC lets users build a 3d wellness world combining all health scores. Key life factors like sleep, stress, relationships and fun are visual elements in that world!
-What makes our project special is that each user deserves to know how everything connects in their body. That's why MOSAIC uses AI to explain hidden connections, i.e. how poor sleep + little daylight + inactivity affect energy. So when auser adjusts one factor, they see the whole ecosystem react; when a piece moves, the whole mosaic changes!
+What makes our project special is that each user deserves to know how everything connects in their body. That's why MOSAIC uses AI to explain hidden connections, i.e. how poor sleep + little daylight + inactivity affect energy. So when a user adjusts one factor, they see the whole ecosystem react; when a piece moves, the whole mosaic changes!
 Rather than simply tracking health factors, MOSAIC combines health education, wellness actions and mindfulness altogether!
 
 ## How we built it
@@ -26,3 +26,4 @@ Sleep, nutrition, relationships, fun, movement, stress and environment are the k
 
 ## What's next for MOSAIC
 
+## Demo video: [link]( )
