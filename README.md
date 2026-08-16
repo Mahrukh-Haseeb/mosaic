@@ -41,7 +41,7 @@ correlation threshold are treated as potentially meaningful patterns. The system
 the relationship as positive or negative and gives it a strength like moderate or strong. 
 We also added basic trend detection. The system looks at factors such as energy, stress and 
 mood across different days of the week and identifies patterns such as a perfectly good or 
-bad day. 
+bad day.
 
 ### The What-If simulator 
 
