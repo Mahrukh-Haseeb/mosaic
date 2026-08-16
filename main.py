@@ -145,7 +145,6 @@ async def get_patterns(user_id: str = "demo_user"):
     Analyze user's check-in data and find hidden connections between wellness factors.
     """
     try:
-        # Fetch REAL data from Supabase
         df = fetch_user_check_ins(user_id)
         
         if df.empty:
@@ -184,7 +183,6 @@ async def run_simulation(request: SimulationRequest):
     Simulate the impact of changing one wellness factor.
     """
     try:
-        # Fetch REAL data from Supabase
         df = fetch_user_check_ins(request.user_id)
         
         if df.empty:
@@ -212,7 +210,6 @@ async def get_insights(user_id: str = "demo_user"):
     Generate personalized weekly insights using Gemini API.
     """
     try:
-        # Fetch REAL data from Supabase
         df = fetch_user_check_ins(user_id)
         
         if df.empty:
@@ -226,7 +223,6 @@ async def get_insights(user_id: str = "demo_user"):
         connections = detector.find_hidden_connections(threshold=0.5)
         avg_data = df.mean().to_dict()
         
-        # Initialize insight generator
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             return {
@@ -235,17 +231,8 @@ async def get_insights(user_id: str = "demo_user"):
                 "insights": ["Add your Gemini API key to get personalized insights."]
             }
         
-        # Generate insights with timeout protection
         generator = InsightGenerator(api_key)
-        try:
-            insights = generator.generate_weekly_insights(avg_data, connections)
-        except Exception as e:
-            print(f"Gemini API error: {e}")
-            return {
-                "error": "AI service temporarily unavailable",
-                "weekly_averages": avg_data,
-                "insights": ["The AI service is currently busy. Please try again in a moment."]
-            }
+        insights = generator.generate_weekly_insights(avg_data, connections)
         
         return {
             "user_id": user_id,
@@ -253,11 +240,18 @@ async def get_insights(user_id: str = "demo_user"):
             "insights": insights
         }
     except Exception as e:
-        print(f"Unexpected error in /ai/insights: {e}")
+        print(f"Error in /ai/insights: {e}")
+        # Always return fallback insights
         return {
-            "error": "Internal server error",
-            "message": str(e),
-            "insights": ["We're experiencing technical difficulties. Please try again later."]
+            "error": "AI service temporarily unavailable",
+            "weekly_averages": avg_data if 'avg_data' in locals() else {},
+            "insights": [
+                "Your sleep and stress levels are connected. Try a small recovery action today.",
+                "Movement can boost your mood. A short walk could help.",
+                "Your social connections matter. Reach out to someone you value.",
+                "Small consistent actions create lasting change.",
+                "Your environment affects your wellbeing. Create a calm space."
+            ]
         }
 
 @app.get("/ai/health")
